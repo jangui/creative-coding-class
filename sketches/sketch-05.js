@@ -1,6 +1,17 @@
 const canvasSketch = require('canvas-sketch');
 const random = require('canvas-sketch-util/random');
+const math = require('canvas-sketch-util/math');
+const Tweakpane = require('tweakpane');
 
+const params = {
+    skip: 210,
+    minWidth: 2,
+    maxWidth: 11,
+    minHeight: 1,
+    maxHeight: 5,
+    frameMult: 5,
+    frequency: 0.002,
+};
 let manager;
 
 let text = 'D';
@@ -8,7 +19,8 @@ let fontSize = 800;
 let fontFamily = 'Isidora Sans';
 
 const settings = {
-  dimensions: [ 1080, 1080 ]
+  dimensions: [ 1080, 1080 ],
+  animate: true,
 };
 
 const typeCanvas = document.createElement('canvas');
@@ -40,9 +52,9 @@ const sketch = async ({context, width, height}) => {
   typeCanvas.width = img.width;
   typeCanvas.height = img.height;
 
-  return ({context, width, height}) => {
+  return ({context, width, height, frame}) => {
     // reset  context
-    context.fillStyle = 'white';
+    context.fillStyle = 'black';
     context.fillRect(0, 0, width, height);
 
     // reset type context
@@ -59,9 +71,8 @@ const sketch = async ({context, width, height}) => {
 
     // get image data from typeCanvas
     const typeData = typeContext.getImageData(0,0,img.width,img.height).data;
-    console.log(typeData);
 
-    for (let i = 0; i < img.width*img.height ; ++i) {
+    for (let i = 0; i < img.width*img.height ; i+=params.skip) {
         let col = i % img.width;
         let row = Math.floor(i / img.width);
 
@@ -90,27 +101,50 @@ const sketch = async ({context, width, height}) => {
         context.font = `${fontSize}px ${fontFamily}`;
         context.fillText(glyph, 0, 0);
         */
-        context.globalAlpha = Math.random();
+        //context.globalAlpha = Math.random();
+        let n = random.noise3D(x, y, frame*params.frameMult, params.frequency);
+        let size = math.mapRange(n, -1, 1, params.minWidth, params.maxWidth);
+        let h = math.mapRange(n, -1, 1, params.minHeight, params.maxHeight);
         const brightness = (r + g + b) / 3;
+        if (brightness < 200) {
+            context.fillStyle = 'white';
+            //context.strokeStyle = 'white';
+            context.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            context.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+            context.beginPath();
+            //context.arc(0, 0, size, 0, Math.PI*2);
+            //context.moveTo(0,0);
+            //context.lineTo(0,-20);
+            //context.stroke();
+            context.fillRect(0, 0,size*0.5,h*0.5);
+            context.fillRect(0, 0,-size*0.5,-h*0.5);
+            //context.fill();
+        }
+        /*
         if (brightness < 50) {
             context.fillStyle = 'yellow';
-            context.fillRect(0, 0,1,1);
+            context.fillRect(0, 0,size,1);
 
         } else if (brightness < 100) {
             context.fillStyle = 'green';
-            context.fillRect(0, 0,1,1);
+            context.fillRect(0, 0,size,1);
 
         } else if (brightness < 150) {
             context.fillStyle = 'blue';
             context.beginPath();
-            context.arc(0,0,1,0, Math.PI*2);
+            context.arc(0,0,size,0, Math.PI*2);
             context.fill();
-        } else {
-            context.fillStyle = 'red';
+
+        } else if (brightness < 200) {
+            context.fillStyle = 'brown';
             context.beginPath();
-            context.arc(0,0,2,0, Math.PI*2);
+            context.arc(0,0,size,0, Math.PI*2);
             context.fill();
+
+        } else {
+            // pass
         }
+        */
 
         // retore context
         context.restore();
@@ -171,8 +205,26 @@ const keyupHandler = (evnt) => {
     manager.render();
 }
 
+const createPane = () => {
+    const pane = new Tweakpane.Pane();
+    let folder;
+
+    folder = pane.addFolder({ title: "sketch"});
+    folder.addInput(params, "skip", {min: 1, max: 2000});
+    folder.addInput(params, "minWidth", {min: 1, max: 20});
+    folder.addInput(params, "maxWidth", {min: 1, max: 200});
+    folder.addInput(params, "minHeight", {min: 1, max: 50});
+    folder.addInput(params, "maxHeight", {min: 1, max: 200});
+
+    folder = pane.addFolder({ title: "Noise"});
+    folder.addInput(params, "frequency", {min: 0.001, max: 0.01, step: 0.001});
+    folder.addInput(params, "frameMult", {min: 1, max: 50});
+};
+
+
 const main = async () => {
     //document.addEventListener('keyup', keyupHandler);
+    createPane();
     manager = await canvasSketch(sketch, settings);
 }
 
